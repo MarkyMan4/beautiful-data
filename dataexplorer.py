@@ -26,6 +26,7 @@ def display_data(data):
 
 def main():
 	st.markdown('# Data Explorer :tada:')
+	st.subheader('test')
 
 	data = left_side()
 	if data is not None:
