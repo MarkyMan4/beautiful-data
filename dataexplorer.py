@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from pandas.plotting import scatter_matrix
+from iso_regression import IsoRegressor
+from lin_regression import LinRegressor
+from poly_regression import PolyRegressor
 import os
 
 
@@ -30,14 +34,89 @@ def left_side():
 
 	return data, selected_cols
 
-def scatter_it(data, selected_cols):
+def scatter(data, selected_cols):
 	dim = len(selected_cols) * 2
 	fig = plt.figure(figsize=(dim, dim))
 	ax = fig.gca()
 	scatter_matrix(data, ax=ax)
 	st.write(fig)
 
-def display_data(data, selected_cols):
+def regression_options(data):
+	reg_select = st.selectbox('Select a type of regression', ['Linear', 'Isotonic', 'Polynomial'])
+	model = None
+
+	x = st.radio('X', data.columns)
+	y = st.radio('Y', data.columns)
+
+	if reg_select == 'Linear':
+		model = LinRegressor(data)
+	elif reg_select == 'Isotonic':
+		model = IsoRegressor(data)
+	elif reg_select == 'Polynomial':
+		model = PolyRegressor(data)
+
+	fig = model.get_graph(x, y)
+	st.write(fig)
+
+	input = st.text_input(f'Enter a value for {x} to predict {y}')
+
+	if st.button('Predict'):
+		pred = model.make_prediction(float(input))
+
+		# need to get the first value since the prediction is returned as a list
+		if reg_select == 'Polynomial':
+			pred = pred[0][0]
+		else:
+			pred = pred[0]
+		st.write(f'Predicted {y} = {round(pred, 3)}')
+
+def show_stats(data):
+	dataset = st.radio('Data', data.columns)
+
+	set_for_stats = data[[dataset]]
+
+	mean = set_for_stats.mean()
+	mean = mean[dataset]
+
+	median = set_for_stats.median()
+	median = median[dataset]
+
+	std_dev = set_for_stats.std()
+	std_dev = std_dev[dataset]
+
+	st.write(f'Mean: {round(mean, 3)}')
+	st.write(f'Median: {round(median, 3)}')
+	st.write(f'Standard Deviation: {round(std_dev, 3)}')
+
+def show_map(data):
+	dim = st.selectbox('View option', ['2d', '3d'])
+
+	if dim == '2d':
+		st.map(data)
+	elif dim == '3d':
+		midpoint = (np.average(data["lat"]), np.average(data["lon"]))
+
+		st.deck_gl_chart(
+		    viewport={
+		        "latitude": midpoint[0],
+		        "longitude": midpoint[1],
+		        "zoom": 11,
+		        "pitch": 50,
+		    },
+		    layers=[
+		        {
+		            "type": "HexagonLayer",
+		            "data": data,
+		            "radius": 100,
+		            "elevationScale": 7,
+		            "elevationRange": [0, 2000],
+		            "pickable": True,
+		            "extruded": True,
+		        }
+		    ],
+		)
+
+def show_data(data, selected_cols):
 	if len(selected_cols) <= 0:
 		st.subheader('Select at least one column')
 
@@ -51,14 +130,25 @@ def display_data(data, selected_cols):
 			st.line_chart(display_data)
 
 		if len(selected_cols) >= 2 and st.checkbox('Variable relationship (scatter matrix)'):
-			scatter_it(display_data, selected_cols)
+			scatter(display_data, selected_cols)
+
+		if st.checkbox('Regression'):
+			regression_options(display_data)
+
+		if st.checkbox('Stats'):
+			show_stats(display_data)
+
+		if ('lat' in selected_cols) and ('lon' in selected_cols):
+			if st.checkbox('Show on map'):
+				show_map(display_data)
+
 
 def main():
-	st.markdown('# Data Explorer :chart_with_upwards_trend::smiley:')
+	st.markdown('# Data Explorer :chart_with_upwards_trend::mag:')
 
 	data, selected_cols = left_side()
 	if data is not None:
-		display_data(data, selected_cols)
+		show_data(data, selected_cols)
 	else:
 		st.subheader('No file chosen')
 
