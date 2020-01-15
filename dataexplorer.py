@@ -9,6 +9,11 @@ from poly_regression import PolyRegressor
 import os
 
 
+@st.cache
+def load_data(source):
+    data = pd.read_csv(source)
+    return data
+
 def left_side():
 	data = None
 	selected_cols = []
@@ -17,10 +22,10 @@ def left_side():
 	up_file = st.sidebar.file_uploader('Upload a file', type='csv')
 
 	if up_file:
-		data = pd.read_csv(up_file)
+		data = load_data(up_file)
 
 	if st.sidebar.checkbox('Use sample data'):
-		data = pd.read_csv('data/iris_data.csv')
+		data = load_data('data/iris_data.csv')
 
 	c_boxes = []
 
@@ -58,7 +63,7 @@ def regression_options(data):
 	fig = model.get_graph(x, y)
 	st.write(fig)
 
-	input = st.text_input(f'Enter a value for {x} to predict {y}')
+	input = st.number_input(f'Enter a value for {x} to predict {y}')
 
 	if st.button('Predict'):
 		pred = model.make_prediction(float(input))
